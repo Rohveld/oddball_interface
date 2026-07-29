@@ -14,7 +14,7 @@ FaceLandmarkerOptions = mp_vision.FaceLandmarkerOptions
 VisionRunningMode = mp_vision.RunningMode
 
 # PATH TO MEDIAPIPE
-MODEL_PATH = 'C:/Users/Roy/OneDrive/Master/M2.1/Project/Exploration/Face_track_map/face_landmarker.task'
+MODEL_PATH = //
 
 # INITALIZATION TO MEDIAPIPE FACE LANDMARKER DETECTION
 options_landmarker = FaceLandmarkerOptions(
