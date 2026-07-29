@@ -14,7 +14,7 @@ FaceLandmarker = mp_vision.FaceLandmarker
 FaceLandmarkerOptions = mp_vision.FaceLandmarkerOptions
 VisionRunningMode = mp_vision.RunningMode
 
-MODEL_PATH = 'C:/Users/Roy/OneDrive/Master/M2.1/Project/Exploration/Face_track_map/face_landmarker.task'
+MODEL_PATH = //
 
 cursor_active = True
 FAILSAFE_KEY = 'f12'
