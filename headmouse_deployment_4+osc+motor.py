@@ -1,3 +1,8 @@
+# This code was created through help from the Google Developers forum, specifically using Mediapipe (https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker), but also using Google's Gemini
+# to create this. Specifically, this code is a combination of multiple things together; combining MediaPipe to extract facial expression data and head movements that are used to move a cursor. It combines Serial
+# communication to communicate with an ESP32C6 and a NEMA17 stepper motor, OSC to communicate data to TouchDesigner & Ableton and uses NDIlib to use share video screen with Python & TouchDesigner. In doing so,
+# it creates an interactive installation that is created for my Industrial Design thesis; where I looked how to situate oddness in public, normative contexts.
+
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python as mp_tasks
@@ -14,14 +19,14 @@ import pygetwindow as gw
 import os
 import pyautogui
 
-# CONFIGURATIONS MEDIAPIPE
+# Configurations of MediaPipe
 BaseOptions = mp_tasks.BaseOptions
 FaceLandmarker = mp_vision.FaceLandmarker
 FaceLandmarkerOptions = mp_vision.FaceLandmarkerOptions
 VisionRunningMode = mp_vision.RunningMode
 
 # PATH TO MEDIAPIPE
-MODEL_PATH = 'C:/Users/Roy/OneDrive/Master/M2.1/Project/Exploration/Face_track_map/face_landmarker.task'
+MODEL_PATH = //
 
 # INITALIZATION TO MEDIAPIPE FACE LANDMARKER DETECTION
 options_landmarker = FaceLandmarkerOptions(
