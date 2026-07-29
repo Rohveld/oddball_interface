@@ -1,3 +1,8 @@
+# This code was created through help from the Google Developers forum, specifically using Mediapipe (https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker), but also using Google's Gemini
+# to create this. Specifically, this code is a combination of multiple things together; combining MediaPipe to extract facial expression data and head movements that are used to move a cursor. Additionally, it combines Serial
+# communication to communicate with an ESP32C6 and a NEMA17 stepper motor that is connected to a curtain frame. At specific orchestrated times, the curtains will open and create a unique, performing experience for
+# the user. :)
+
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python as mp_tasks
@@ -197,7 +202,7 @@ with FaceLandmarker.create_from_options(options_landmarker) as landmarker:
         process_blendshapes_sync(results, current_time)
         face_detected = bool(results.face_landmarks)
 
-
+        #Controls the curtains: if the 
         if face_detected:
             last_face_time = current_time
 
