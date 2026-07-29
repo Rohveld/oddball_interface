@@ -25,10 +25,11 @@ FaceLandmarker = mp_vision.FaceLandmarker
 FaceLandmarkerOptions = mp_vision.FaceLandmarkerOptions
 VisionRunningMode = mp_vision.RunningMode
 
-# PATH TO MEDIAPIPE
+# Place the path to the model here that can be downloaded at Google's website.
 MODEL_PATH = //
 
-# INITALIZATION TO MEDIAPIPE FACE LANDMARKER DETECTION
+# Initialization of landmarker, specifying different configurations (blenddshapes, video/image/livestream, etc).
+# Configuration options: http://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker/python#configuration_options
 options_landmarker = FaceLandmarkerOptions(
     base_options=BaseOptions(model_asset_path=MODEL_PATH),
     running_mode=mp_vision.RunningMode.IMAGE,
@@ -36,12 +37,12 @@ options_landmarker = FaceLandmarkerOptions(
     output_face_blendshapes=True
 )
 
-# SCREEN SIZE, CENTER POINT AND PREVIOUS MOUSE POINTS FOR CALCULATIONS
+# Screen size, center points and and previous mouse points.
 screen_w, screen_h = 1920, 1080
 center_x, center_y = screen_w // 2, screen_h // 2
 prev_move_x, prev_move_y = center_x, center_y
 
-# SMOOTHING FOR MOUSE NAVIGATION AND MOVEMENTS
+# Smoothing of mouse navigation to prevent malfunction.
 SCALE = 50
 SMOOTHING_NORMAL = 0.10
 SMOOTHING_CLICKING = 0.005
@@ -50,15 +51,14 @@ current_smoothing = 0
 right_timestamps = []
 FRAME_WINDOW_MS = 200
 MIN_FRAMES = 5
-
 prev_face_detected = False
 
-# FROM TOUCHDESIGNER
+# Receiving values from TouchDesigner, showing the state that the tutorial is in.
 td_state = 0
 prev_td_state = 0
 td_triggered = False
 
-#FOR CURTAIN
+# Serial communication with the stepper motor to open and close the curtain and values that are relevant.
 ser = serial.Serial('COM5', 115200)
 curtain_status = True  # False for Closed, True for Open
 face_first_seen_time = 0
@@ -66,18 +66,20 @@ curtain_released = False
 last_face_time = int(time.time() * 1000)
 INACTIVITY_THRESHOLD = 5000
 
-# MOUSE CONFIGURATIONS FAILSAFE
+# Failsafe for mouse; press 'f12'
 cursor_active = True
 FAILSAFE_KEY = 'f12'
 keyboard.add_hotkey(FAILSAFE_KEY, lambda: print("Toggled cursor"))
 
-# MOUSE CLICK STATES: to calculate the time between mouse clicks.
+# Mouse clicks to determine the amount of time has passed before someone has clicked; to determine whether someone single clicks or double clicks (with their eyes).
 is_left_clicked = False
 left_press_time = left_release_time = left_release_check_time = 0
 is_right_clicked = False
 right_press_time = right_release_time = right_release_check_time = 0
 # --------------------------------------------------------------------------- #
 
+#Receives a trigger from TouchDesigner, then switches to a different tab/digital desktop. 
+#After the tutorial is over, it switches to a different desktop where the game is visible again; so it becomes a seamless experience.
 def handle_from_td(address, *args):
     global td_state, prev_td_state, td_triggered
     td_state = args[0]
@@ -91,7 +93,7 @@ def handle_from_td(address, *args):
     
 
 # FIRST FUNCTION FOR MOUSE NAVIGATION: uses machine learning model to detect face (face landmarks), place it on
-# a face mesh and tracks 6 points to be able to track head pose to navigate the mouse.
+# a face mesh and tracks 6 points to be able to track head pose and head movement and maps that to the mouse.
 def process_pose_from_landmarker(image, results):
     global prev_move_x, prev_move_y, current_smoothing
     img_h, img_w, _ = image.shape
@@ -167,17 +169,9 @@ def process_blendshapes_sync(result, current_time):
     client.send_message("/RightSide", [rightBlink_score, leftMouth_score])
     client.send_message("/LeftSide", [leftBlink_score, rightMouth_score])
 
-    # RIGHT EYE
-    if rightBlink_score > 0.35:
-        right_timestamps.append(current_time)
-
-    # Remove old timestamps
-    right_timestamps = [t for t in right_timestamps if current_time - t <= FRAME_WINDOW_MS]
-
-
     # Assign a boolean to new variables if they have crossed a specific threshold.
     EXPRESSION_LEFT = (leftBlink_score > 0.35 and cursor_active)
-    EXPRESSION_RIGHT = (len(right_timestamps) >= MIN_FRAMES and cursor_active)
+    EXPRESSION_RIGHT = rightBlink_score > 0.35 and cursor_active)
 
     # LEFT CLICK LOGIC: leaves a little time between clicks to prevent instant double click.
     if EXPRESSION_LEFT:
@@ -197,7 +191,7 @@ def process_blendshapes_sync(result, current_time):
             is_left_clicked = False
             left_release_check_time = 0
 
-    # RIGHT CLICK
+    # RIGHT CLICK LOGIC
     if EXPRESSION_RIGHT:
         current_smoothing = SMOOTHING_CLICKING
         if right_release_check_time > 0: right_release_check_time = 0
@@ -219,15 +213,17 @@ def process_blendshapes_sync(result, current_time):
 with FaceLandmarker.create_from_options(options_landmarker) as landmarker:
     video_capture = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
-    # Haal de resolutie op van je webcam
+    # Gather the resolution of the webcam
     width  = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+    #Use NDI to use webcam at two locations at the same time: TouchDesigner & Python
     ndi.initialize()
     send_settings = ndi.SendCreate()
     send_settings.ndi_name = "HeadmouseFeed"
     sender = ndi.send_create(send_settings)
 
+    #Listening if there is any messages coming from TouchDesigner to Python.
     disp = dispatcher.Dispatcher()
     disp.map("/from_TD", handle_from_td)
     server = osc_server.ThreadingOSCUDPServer(("127.0.0.1", 10003), disp)
@@ -253,6 +249,7 @@ with FaceLandmarker.create_from_options(options_landmarker) as landmarker:
 
         client = udp_client.SimpleUDPClient("127.0.0.1", 10001)
 
+        # Keeping up with presence in front of the screen and sending it constantly to TouchDesigner, so that can be used to control the interface.
         if face_detected and not prev_face_detected:
             print("FACE JUST DETECTED")
             client.send_message("/face_detected", 1)
@@ -263,13 +260,14 @@ with FaceLandmarker.create_from_options(options_landmarker) as landmarker:
 
         prev_face_detected = face_detected
 
-        # ← Stuur frame naar virtuele webcam
+        # Sends frames to the virtual webcam.
         frame = ndi.VideoFrameV2()
         frame.data = cv2.cvtColor(flipped_frame, cv2.COLOR_BGR2BGRA)
         frame.FourCC = ndi.FOURCC_VIDEO_TYPE_BGRA
         ndi.send_send_video_v2(sender, frame)
 
 
+        #Controls the curtains opening and closing, by constantly writing serial messages to the ESP32C6 (and signaling the motor).
         if face_detected:
             last_face_time = current_time
 
