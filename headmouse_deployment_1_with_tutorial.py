@@ -1,3 +1,9 @@
+# This code was created through help from the Google Developers forum, specifically using Mediapipe (https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker), but also using Google's Gemini
+# to create this. This code was made as a university project, as I was interested into odd experiences and unconventional ways of interacting with technologies. In doing so, I made an interface that you can control
+# using head movements and facial expressions using Mediapipe. As I wanted to see what people would do when they would see this in the wild; I deployed it in a public library. This code is from the first time
+# putting it there, and I combined it with showing a tutorial at first (which honestly did not work super well because people had to wait super long).
+
+
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python as mp_tasks
@@ -8,23 +14,23 @@ import numpy as np
 import time
 import os
 
-# --- CONFIGURATIE --- #
+# Configurations of MediaPipe
 BaseOptions = mp_tasks.BaseOptions
 FaceLandmarker = mp_vision.FaceLandmarker
 FaceLandmarkerOptions = mp_vision.FaceLandmarkerOptions
 VisionRunningMode = mp_vision.RunningMode
 
+# Place the path to the model here that can be downloaded at Google's website.
 MODEL_PATH = //
 
 cursor_active = True
 FAILSAFE_KEY = 'f12'
 keyboard.add_hotkey(FAILSAFE_KEY, lambda: print("Toggled cursor"))
 
-# Video paths
+# Video paths (I will include them in here)
 script_dir = os.path.dirname(os.path.abspath(__file__))
 idle_video_path = os.path.join(script_dir, "Blinking_Eye.mp4")
 welcome_video_path = os.path.join(script_dir, "Just_Tutorial1.mp4")
-
 print("Idle video pad:", idle_video_path)
 print("Welcome video pad:", welcome_video_path)
 
@@ -33,6 +39,7 @@ video_cap = None
 screensaver_active = False
 welcome_active = False
 
+# Using an inactivity threshold that counts how long there has been no presence in front of the interface.
 INACTIVITY_THRESHOLD = 2000  # ms
 last_face_time = int(time.time() * 1000)
 
@@ -45,13 +52,14 @@ SMOOTHING_NORMAL = 0.04
 SMOOTHING_CLICKING = 0.005
 current_smoothing = 0
 
-# Click state
+# Mouse click states
 is_left_clicked = False
 left_press_time = left_release_time = left_release_check_time = 0
 is_right_clicked = False
 right_press_time = right_release_time = right_release_check_time = 0
 
-# --- INIT FACE LANDMARKER --- #
+# Initialization of landmarker, specifying different configurations (blenddshapes, video/image/livestream, etc).
+# Configuration options: http://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker/python#configuration_options
 options_landmarker = FaceLandmarkerOptions(
     base_options=BaseOptions(model_asset_path=MODEL_PATH),
     running_mode=mp_vision.RunningMode.IMAGE,
@@ -59,7 +67,8 @@ options_landmarker = FaceLandmarkerOptions(
     output_face_blendshapes=True
 )
 
-# --- FUNCTIES --- #
+# FIRST FUNCTION FOR MOUSE NAVIGATION: uses machine learning model to detect face (face landmarks), place it on
+# a face mesh and tracks 6 points to be able to track head pose and head movement and maps that to the mouse.
 def process_pose_from_landmarker(image, results):
     global prev_move_x, prev_move_y, current_smoothing
     img_h, img_w, _ = image.shape
@@ -105,13 +114,15 @@ def process_pose_from_landmarker(image, results):
         if cursor_active and not (is_left_clicked or is_right_clicked):
             mouse.move(new_move_x, new_move_y, absolute=True)
 
+# SECOND FUNCTION FOR MOUSE CLICKS: uses a different function (blendshapes) that can detect specific facial
+# gestures, in this case: left and right winking and tensing the sides of the mouth. 
 def process_blendshapes_sync(result, current_time):
     global is_left_clicked, left_press_time, left_release_time, left_release_check_time
     global is_right_clicked, right_press_time, right_release_time, right_release_check_time
     global current_smoothing
 
+    # Assign the values of left blink and right blink to respective variables.
     leftBlink_score = rightBlink_score = 0.0
-
     if result.face_blendshapes:
         blendshapes = result.face_blendshapes[0]
         for category in blendshapes:
@@ -120,10 +131,12 @@ def process_blendshapes_sync(result, current_time):
             if category.category_name == "eyeBlinkLeft":
                 rightBlink_score = category.score
 
+    
+    # Assign a boolean to new variables if they have crossed a specific threshold.
     EXPRESSION_LEFT = (leftBlink_score > 0.35 and cursor_active)
     EXPRESSION_RIGHT = (rightBlink_score > 0.35 and cursor_active)
 
-    # LEFT CLICK
+    # LEFT CLICK LOGIC
     if EXPRESSION_LEFT:
         current_smoothing = SMOOTHING_CLICKING
         if left_release_check_time > 0: left_release_check_time = 0
@@ -141,7 +154,7 @@ def process_blendshapes_sync(result, current_time):
             is_left_clicked = False
             left_release_check_time = 0
 
-    # RIGHT CLICK
+    # RIGHT CLICK LOGIC
     if EXPRESSION_RIGHT:
         current_smoothing = SMOOTHING_CLICKING
         if right_release_check_time > 0: right_release_check_time = 0
@@ -163,14 +176,12 @@ def process_blendshapes_sync(result, current_time):
 with FaceLandmarker.create_from_options(options_landmarker) as landmarker:
     video_capture = cv2.VideoCapture(0)  # webcam
 
-    # --- START IDLE VIDEO BIJ OPSTART --- #
     screensaver_active = True
     welcome_active = False
     video_cap = cv2.VideoCapture(idle_video_path)
     if not video_cap.isOpened():
         print(f"⚠️ Kan video niet openen: {idle_video_path}")
 
-    # Toon eerste frame direct
     if video_cap:
         ret, vframe = video_cap.read()
         if ret:
@@ -192,7 +203,7 @@ with FaceLandmarker.create_from_options(options_landmarker) as landmarker:
         process_pose_from_landmarker(flipped_frame, results)
         process_blendshapes_sync(results, current_time)
 
-        # --- PRESENCE BASED VIDEO LOGIC --- #
+#If someone has been detected (if results are shown in the model), then stop the idle video and start the tutorial (welcome video). 
         if results.face_landmarks:
             last_face_time = current_time
             # Stop idle video
@@ -204,12 +215,15 @@ with FaceLandmarker.create_from_options(options_landmarker) as landmarker:
                     pass
                 video_cap = None
                 screensaver_active = False
-            # Start welcome video
+                
+# Start welcome video
             if not welcome_active:
                 welcome_active = True
                 video_cap = cv2.VideoCapture(welcome_video_path)
                 if not video_cap.isOpened():
                     print(f"⚠️ Kan video niet openen: {welcome_video_path}")
+                    
+#If the inactivity-threshold has been exceeded, start the idle video again.
         else:
             if current_time - last_face_time > INACTIVITY_THRESHOLD:
                 if not screensaver_active:
@@ -217,12 +231,11 @@ with FaceLandmarker.create_from_options(options_landmarker) as landmarker:
                     welcome_active = False
                     video_cap = cv2.VideoCapture(idle_video_path)
 
-        # --- RENDER VIDEO --- #
-        # --- RENDER VIDEO --- #
+#Render the video (idle/welcome video) and put it on fullscreen, as well as showing the webcam footage.
         if video_cap:
             ret, vframe = video_cap.read()
             if not ret:
-                # Video afgelopen
+#  After the video is done, open the screen for trying out the interaction.
                 if welcome_active:
                     try:
                         cv2.destroyWindow("Welcome Video")
@@ -230,7 +243,6 @@ with FaceLandmarker.create_from_options(options_landmarker) as landmarker:
                         pass
                     video_cap = None
                     welcome_active = False
-            # Hier laten we scherm verder open voor interactie (geen blocking)
             elif screensaver_active:
                 # Idle video loop
                 video_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
